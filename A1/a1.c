@@ -11,8 +11,9 @@ FILE * openFile(char * f);
 int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL);
 char ** splitString(char * line, int n, char * delim);
 person * copyPersonData(person * old, char ** data);
-peopleList * addPersonToList(peopleList * peopleHead, person * newPerson);
+void addPersonToList(peopleList ** peopleHead, person * newPerson);
 void addPhone(person * newPerson, char * area, char * number);
+void printPeople(peopleList *  list);
 
 int main(int argc, char** argv) {
 	printf("Running A1\n");
@@ -91,6 +92,7 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 	peopleList * peopleHead = peopleL;
 	phoneList * phoneHead = phoneL;
 
+
 	while((numRead = getline(&buffer, &bufferSize, f)) != -1){
 		//printf("%s", buffer);
 
@@ -109,16 +111,14 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 			newPerson = copyPersonData(newPerson, returnValues);
 
 			//Save person to the list
-			peopleHead = addPersonToList(peopleHead, newPerson);
-
-			printf("%s\n", peopleHead->person->first);
+			addPersonToList(&peopleHead, newPerson);
 
 			//Priming read of the next line
 			memset(buffer, 0, bufferSize); //Clear old data
 			numRead = getline(&buffer, &bufferSize, f);
 			//Read the phone data
 			while(strncmp(buffer, end, strlen(end)) != 0){
-				printf("Buffer-%s\n", buffer);
+				//printf("Buffer-%s\n", buffer);
 				
 				returnValues = splitString(buffer, 4, " ");
 
@@ -130,8 +130,11 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 			}
 
 			//printf("Found\n");
+			//printf("head-%s\n", peopleHead->person->first);
 		}
 	}
+
+	printPeople(peopleHead);
 
 	free(buffer);
 	return 0;
@@ -160,7 +163,6 @@ char ** splitString(char * line, int n, char * delim) {
 	}
 
 	return broken;
-
 }
 
 
@@ -170,9 +172,9 @@ person * copyPersonData(person * old, char ** data) {
 	old->first = calloc(sizeof(char), strlen(data[2]));
 	old->nickname = calloc(sizeof(char), strlen(data[3]));
 
-	strncpy(old->last, data[2], strlen(data[0]));
+	strncpy(old->last, data[0], strlen(data[0]));
 	strncpy(old->middle, data[1], strlen(data[1]));
-	strncpy(old->first, data[0], strlen(data[2]));
+	strncpy(old->first, data[2], strlen(data[2]));
 	strncpy(old->nickname, data[3], strlen(data[3]));
 
 	free(data[0]);
@@ -183,20 +185,24 @@ person * copyPersonData(person * old, char ** data) {
 	return old;
 }
 
-peopleList * addPersonToList(peopleList * peopleHead, person * newPerson) {
-	if(peopleHead == NULL){
-		printf("First-%s\n", newPerson->first);
-		peopleHead = calloc(sizeof(peopleList), 1);
-		peopleHead->person = newPerson;
-		peopleHead->next = NULL;
+void addPersonToList(peopleList ** peopleHead, person * newPerson) {
+	peopleList * temp = *peopleHead;
+
+	//printf("temp-%ld\n", temp);
+
+	if(temp == NULL){
+		temp = calloc(sizeof(peopleList), 1);
+		temp->person = newPerson;
+		temp->next = NULL;
 	}
 	else {
-		peopleHead->next = calloc(sizeof(peopleList), 1);
-		peopleHead = peopleHead->next;
-		peopleHead->person = newPerson;
+		temp->next = calloc(sizeof(peopleList), 1);
+		temp = temp->next;
+		temp->person = newPerson;
 	}
 
-	return peopleHead;
+	//printf("temp-%ld\n", temp);
+	*peopleHead = temp;
 }
 
 void addPhone(person * newPerson, char * area, char * number) {
@@ -221,9 +227,22 @@ void addPhone(person * newPerson, char * area, char * number) {
 		strlen(area) + strlen(number) + 2);
 	sprintf(newPhone->number, "%s %s", area, number);
 
-	printf("Phone-%s\n", newPhone->number);
+	//printf("Phone-%s\n", newPhone->number);
+}
 
+void printPeople(peopleList * list) {
+	peopleList * p = list;
 
+	if(p == NULL){
+		printf("%s\n", "NULL LIST");
+	}
+
+	while(p != NULL) {
+		printf("1-%s\n", p->person->first);
+		printf("2-%s\n", p->person->middle);
+		printf("3-%s\n", p->person->last);
+		p = p->next;
+	}
 }
 
 
