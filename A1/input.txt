@@ -1,5 +1,11 @@
 <person>
-Last,Middle,First,nickname
+Last, Middle, First, nickname
 (999) 999-9999 Type, true/false
-(phone#) type, true/false
+(phone#) 000-0000 type, true/false
+</person>
+<person>
+2Last, 2Middle, 2First, 2nickname
+(222) 222-2222 Type, true/false
+(221) 222-2221 type, true/false
+(221) 222-2223 type, true/false
 </person>

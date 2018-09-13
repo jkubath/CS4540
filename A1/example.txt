@@ -1,0 +1,23 @@
+example.txt
+
+
+Person List
+	name
+	phone number
+		pointer to actual number
+		type
+
+Phone List
+	phone number
+	person list
+		
+
+
+Person List - bob 	tim 	John
+			123		222
+			111		333
+			222		333
+
+Phone list 123, type, primary 		111 	222		333
+			bob		bob		bob		tim
+							tim
