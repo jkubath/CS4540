@@ -1,0 +1,5 @@
+<person>
+Last,Middle,First,nickname
+(999) 999-9999 Type, true/false
+(phone#) type, true/false
+</person>
