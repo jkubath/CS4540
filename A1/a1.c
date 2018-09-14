@@ -8,30 +8,38 @@
 
 char * cmdLine(int argc, char** argv);
 FILE * openFile(char * f);
-int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL);
+int readFile(FILE * f, person ** peopleL, phone ** phoneL);
 char ** splitString(char * line, int n, char * delim);
 person * copyPersonData(person * old, char ** data);
-void addPersonToList(peopleList ** peopleHead, person * newPerson);
-void addPhone(person * newPerson, char * area, char * number);
-void printPeople(peopleList *  list);
+//void addPersonToList(peopleList ** peopleHead, person * newPerson, int personLength);
+int addPersonToList(person ** list, person * newPerson, int personLength);
+void addPhone(person * newPerson, char ** data);
+void printPeople(person ** list);
+void printPhoneList(phoneList * head);
+person ** initializePersonList(person ** list, int start, int end);
 
 int main(int argc, char** argv) {
 	printf("Running A1\n");
 
-	peopleList * peopleL = NULL;
-	phoneList * phoneL = NULL;
+	// peopleList * peopleL = NULL;
+	// phoneList * phoneL = NULL;
+	int length = 50;
+	person ** person_L = calloc(sizeof(person), length);
+	phone ** phone_L = calloc(sizeof(phone), length);
 	FILE * file = NULL;
+
+	initializePersonList(person_L, 0, length);
 
 	//printf("-%s-\n", cmdLine(argc, argv));
 	char * temp = cmdLine(argc, argv);
 
 	file = openFile(temp);
 
-	readFile(file, peopleL, phoneL);
+	readFile(file, person_L, phone_L);
 
 
-	free(peopleL);
-	free(phoneL);
+	// free(peopleL);
+	// free(phoneL);
 	printf("Done A1\n");
 	return 0;
 }
@@ -82,16 +90,17 @@ FILE * openFile(char * f) {
 
 }
 
-int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
+int readFile(FILE * f, person ** peopleL, phone ** phoneL) {
 	size_t bufferSize = 500;
 	char * buffer = calloc(sizeof(char), bufferSize);
 	ssize_t numRead;
 	char start[] = "<person>";
 	char end[] = "</person>";
 
-	peopleList * peopleHead = peopleL;
-	phoneList * phoneHead = phoneL;
-
+	person ** peopleHead = peopleL;
+	phone ** phoneHead = phoneL;
+	int personLength = 50;
+	int phoneLength = 50;
 
 	while((numRead = getline(&buffer, &bufferSize, f)) != -1){
 		//printf("%s", buffer);
@@ -105,7 +114,7 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 			memset(buffer, 0, bufferSize); //Clear old data
 			numRead = getline(&buffer, &bufferSize, f);
 
-			printf("%s", buffer);
+			//printf("%s", buffer);
 			char ** returnValues = splitString(buffer, 4, ",");
 
 			newPerson = copyPersonData(newPerson, returnValues);
@@ -115,11 +124,11 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 			numRead = getline(&buffer, &bufferSize, f);
 			//Read the phone data
 			while(strncmp(buffer, end, strlen(end)) != 0){
-				printf("p-%s\n", buffer);
+				//printf("p-%s\n", buffer);
 				
 				returnValues = splitString(buffer, 4, " ");
 
-				addPhone(newPerson, returnValues[0], returnValues[1]);
+				addPhone(newPerson, returnValues);
 			
 				//Get the next line
 				memset(buffer, 0, bufferSize); //Clear old data
@@ -128,7 +137,7 @@ int readFile(FILE * f, peopleList * peopleL, phoneList * phoneL) {
 
 			
 			//Save person to the list
-			addPersonToList(&peopleHead, newPerson);
+			personLength = addPersonToList(peopleHead, newPerson, personLength);
 			//printf("Add to list\n");
 			//printf("Found\n");
 			//printf("head-%s\n", peopleHead->person->first);
@@ -174,9 +183,9 @@ person * copyPersonData(person * old, char ** data) {
 	old->nickname = calloc(sizeof(char), strlen(data[3]));
 
 	strncpy(old->last, data[0], strlen(data[0]));
-	strncpy(old->middle, data[1], strlen(data[1]));
-	strncpy(old->first, data[2], strlen(data[2]));
-	strncpy(old->nickname, data[3], strlen(data[3]));
+	strncpy(old->middle, data[1] + 1, strlen(data[1]) - 1);
+	strncpy(old->first, data[2] + 1, strlen(data[2]) - 1);
+	strncpy(old->nickname, data[3] + 1, strlen(data[3]) - 1);
 
 	free(data[0]);
 	free(data[1]);
@@ -186,69 +195,95 @@ person * copyPersonData(person * old, char ** data) {
 	return old;
 }
 
-void addPersonToList(peopleList ** peopleHead, person * newPerson) {
-	peopleList * temp = *peopleHead;
+int addPersonToList(person ** list, person * newPerson, int personLength) {
+	int index = 0;
+	int change = 1;
 
-	//printf("temp-%ld\n", temp);
-
-	if(temp == NULL){
-		temp = calloc(sizeof(peopleList), 1);
-		temp->person = newPerson;
-		temp->next = NULL;
-		*peopleHead = temp;
-	}
-	else {
-		while(temp->next != NULL){
-			printf("t-%ld\n", temp);
-			temp = temp->next;
-		}
-		temp->next = calloc(sizeof(peopleList), 1);
-		temp = temp->next;
-		temp->person = newPerson;
+	while(index < personLength && list[index] != NULL){
+		index++;
 	}
 
-	//printf("temp-%ld\n", temp);
-	
+	if(index == personLength) {
+		list = realloc(list, sizeof(person) * (personLength * 2));
+		initializePersonList(list, personLength, personLength * 2);
+		change = 2;
+	}
+
+	list[index] = newPerson;
+
+	return (personLength * change);
+
 }
 
-void addPhone(person * newPerson, char * area, char * number) {
-	phone * newPhone = NULL;
-
+void addPhone(person * newPerson, char ** data) {
+	phoneList * newPhone = NULL;
 	if(newPerson->nextPhone == NULL){
-		newPerson->nextPhone = calloc(sizeof(phone), 1);
+		newPerson->nextPhone = calloc(sizeof(phoneList), 1);
 		newPhone = newPerson->nextPhone;
 	}
 	else {
 		newPhone = newPerson->nextPhone;
-		while(newPhone->nextPhone != NULL) {
-			newPhone = newPhone->nextPhone;
+		while(newPhone->next != NULL) {
+			newPhone = newPhone->next;
 		}
-		newPhone->nextPhone = calloc(sizeof(phone), 1);
-		newPhone = newPhone->nextPhone;
+		newPhone->next = calloc(sizeof(phoneList), 1);
+		newPhone = newPhone->next;
 	}
 
-	newPhone->nextPhone = NULL;
+	newPhone->next = NULL;
+	newPhone->phoneP = calloc(sizeof(phone), 1);
 
-	newPhone->number = calloc(sizeof(char), 
-		strlen(area) + strlen(number) + 2);
-	sprintf(newPhone->number, "%s %s", area, number);
+	phone * nPhone = newPhone->phoneP;
+	nPhone->number = calloc(sizeof(char), 
+		strlen(data[0]) + strlen(data[1]) + 2);
+	sprintf(nPhone->number, "%s %s", data[0], data[1]);
 
-	//printf("Phone-%s\n", newPhone->number);
+	newPhone->phoneP = nPhone;
+	newPhone->phoneType =(enum phoneType_e) data[2];
+	newPhone->isPrimary = data[3];
+
+	//printf("Phone-%s\n", newPhone->phoneP->number);
 }
 
-void printPeople(peopleList * list) {
-	peopleList * p = list;
+void printPeople(person ** list) {
+	int index = 0;
 
-	if(p == NULL){
+	if(list == NULL){
 		printf("%s\n", "NULL LIST");
 	}
 
-	while(p != NULL) {
-		printf("%s \n", p->person->first);
-		printf("2-%s\n", p->person->middle);
-		printf("3-%s\n", p->person->last);
-		p = p->next;
+	while(list[index] != NULL) {
+		person * p = list[index];
+		printf("%s %s %s\n", p->first, p->middle,
+			p->last);
+		printPhoneList(p->nextPhone);
+
+		index++;
 	}
+
+	//printf("print done\n");
+}
+
+void printPhoneList(phoneList * head) {
+	while(head != NULL) {
+		printf("\t%s\n", head->phoneP->number);
+		head = head->next;
+	}
+}
+
+void addPhoneToList(phoneList ** phoneL, phone * p) {
+
+}
+
+person ** initializePersonList(person ** list, int start, int end) {
+	int index = start;
+
+	while(index < end) {
+		list[index] = NULL;
+		index++;
+	}
+
+	return list;
 }
 
 

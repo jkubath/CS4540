@@ -4,6 +4,6 @@ typedef struct person_s {
 	char * last;
 	char * nickname;
 	
-	struct phone_s * nextPhone;
+	struct phoneList_s * nextPhone;
 	//struct person_s * nextPerson;
 } person;
