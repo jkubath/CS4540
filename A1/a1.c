@@ -24,6 +24,8 @@ void addPerson(phone * newPhone, person * newPerson);
 void printPhone(phone ** list);
 void printPersonList(peopleList * head);
 
+void freeThings(person ** pe, phone ** ph);
+
 int main(int argc, char** argv) {
 	printf("Running A1\n");
 
@@ -32,6 +34,8 @@ int main(int argc, char** argv) {
 	int length = 50;
 	person ** person_L = calloc(sizeof(person), length);
 	phone ** phone_L = calloc(sizeof(phone), length);
+	//struct person * person_L[20]; int peopleCount = 0; // how many in array
+   	//struct phone * phone_L[20]; int phoneCount = 0;
 	FILE * file = NULL;
 
 	initializePersonList(person_L, 0, length);
@@ -44,6 +48,10 @@ int main(int argc, char** argv) {
 	readFile(file, person_L, phone_L);
 
 
+	printPeople(person_L);
+	printPhone(phone_L);
+
+	//freeThings(person_L, phone_L);
 	// free(peopleL);
 	// free(phoneL);
 	printf("Done A1\n");
@@ -150,9 +158,6 @@ int readFile(FILE * f, person ** peopleL, phone ** phoneL) {
 			//printf("head-%s\n", peopleHead->person->first);
 		}
 	}
-
-	printPeople(peopleHead);
-	printPhone(phoneHead);
 
 	free(buffer);
 	return 0;
@@ -389,6 +394,53 @@ void printPersonList(peopleList * head) {
 		printf("\t%s %s\n", head->person->first, head->person->last);
 		head = head->next;
 	}
+}
+
+void freeThings(person ** pe, phone ** ph) {
+	int index = 0;
+	person * tPerson = pe[index];
+	phone * tPhone = ph[index];
+
+	//Free the person array
+	while(tPerson != NULL) {
+		free(tPerson->first);
+		free(tPerson->middle);
+		free(tPerson->last);
+		free(tPerson->nickname);
+
+		phoneList * list = tPerson->nextPhone;
+		phoneList * hold = NULL;
+		while(list != NULL) {
+			hold = hold->next;
+			free(list);
+			list = hold;
+		}
+
+		index++;
+		tPerson = pe[index];
+	}
+
+	index = 0;
+
+	//Free the phone array
+	while(tPhone != NULL) {
+		free(tPhone->number);
+
+		peopleList * list = tPhone->nextPerson;
+		peopleList * hold = NULL;
+		while(list != NULL) {
+			hold = list->next;
+			free(list);
+			list = hold;
+		}
+
+		index++;
+		tPhone = ph[index];
+	}
+
+
+
+
 }
 
 
