@@ -6,4 +6,4 @@ use:
 	./a1 input.txt
 
 val:
-	valgrind ./a1 input.txt
+	valgrind --leak-check=full --show-leak-kinds=all ./a1 input.txt

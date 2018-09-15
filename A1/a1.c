@@ -51,7 +51,8 @@ int main(int argc, char** argv) {
 	printPeople(person_L);
 	printPhone(phone_L);
 
-	//freeThings(person_L, phone_L);
+	freeThings(person_L, phone_L);
+	fclose(file);
 	// free(peopleL);
 	// free(phoneL);
 	printf("Done A1\n");
@@ -133,6 +134,12 @@ int readFile(FILE * f, person ** peopleL, phone ** phoneL) {
 
 			newPerson = copyPersonData(newPerson, returnValues);
 
+			free(returnValues[0]);
+			free(returnValues[1]);
+			free(returnValues[2]);
+			free(returnValues[3]);
+			free(returnValues);
+
 			//Priming read of the next line
 			memset(buffer, 0, bufferSize); //Clear old data
 			numRead = getline(&buffer, &bufferSize, f);
@@ -156,6 +163,13 @@ int readFile(FILE * f, person ** peopleL, phone ** phoneL) {
 			//printf("Add to list\n");
 			//printf("Found\n");
 			//printf("head-%s\n", peopleHead->person->first);
+
+			// free(newPerson);
+			// free(returnValues[0]);
+			// free(returnValues[1]);
+			// free(returnValues[2]);
+			// free(returnValues[3]);
+			// free(returnValues);
 		}
 	}
 
@@ -163,7 +177,7 @@ int readFile(FILE * f, person ** peopleL, phone ** phoneL) {
 	return 0;
 }
 
-char ** splitString(char * line, int n, char * delim) {
+char ** splitString(char * lineIn, int n, char * delim) {
 	char ** broken = calloc(sizeof(char *), n); //Freed in copyPersonData()
 	char * token = NULL;
 	char * temp = NULL;
@@ -199,10 +213,10 @@ person * copyPersonData(person * old, char ** data) {
 	strncpy(old->first, data[2] + 1, strlen(data[2]) - 1);
 	strncpy(old->nickname, data[3] + 1, strlen(data[3]) - 1);
 
-	free(data[0]);
-	free(data[1]);
-	free(data[2]);
-	free(data[3]);
+	// free(data[0]);
+	// free(data[1]);
+	// free(data[2]);
+	// free(data[3]);
 
 	return old;
 }
@@ -246,7 +260,7 @@ void addPhone(person * newPerson, char ** data) {
 
 	phone * nPhone = newPhone->phoneP;
 	nPhone->number = calloc(sizeof(char), 
-		strlen(data[0]) + strlen(data[1]) + 2);
+	strlen(data[0]) + strlen(data[1]) + 2);
 	sprintf(nPhone->number, "%s %s", data[0], data[1]);
 
 	newPhone->phoneP = nPhone;
@@ -336,6 +350,10 @@ int copyPhoneData(phone ** phoneList, person * newPerson, int phoneLength) {
 		returnValue = addPhoneToList(phoneList, p, phoneLength);
 
 		tempPhone = tempPhone->next;
+
+		// free(p->number);
+		// free(p->nextPerson);
+		// free(p);
 	}
 
 	return returnValue;
@@ -401,16 +419,21 @@ void freeThings(person ** pe, phone ** ph) {
 	person * tPerson = pe[index];
 	phone * tPhone = ph[index];
 
+	printf("Free List\n");
+	printf("-------------------\n");
+
 	//Free the person array
 	while(tPerson != NULL) {
+		printf("%s\n", tPerson->last);
 		free(tPerson->first);
 		free(tPerson->middle);
 		free(tPerson->last);
 		free(tPerson->nickname);
 
 		phoneList * list = tPerson->nextPhone;
-		phoneList * hold = NULL;
+		phoneList * hold = list;
 		while(list != NULL) {
+			printf("\t%s\n", list->phoneP->number);
 			hold = hold->next;
 			free(list);
 			list = hold;
@@ -427,7 +450,7 @@ void freeThings(person ** pe, phone ** ph) {
 		free(tPhone->number);
 
 		peopleList * list = tPhone->nextPerson;
-		peopleList * hold = NULL;
+		peopleList * hold = list;
 		while(list != NULL) {
 			hold = list->next;
 			free(list);
@@ -439,7 +462,8 @@ void freeThings(person ** pe, phone ** ph) {
 	}
 
 
-
+	free(pe);
+	free(ph);
 
 }
 
