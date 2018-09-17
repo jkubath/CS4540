@@ -24,7 +24,7 @@ void menu(person * people[], int peopleLength, phone * phone[], int phoneLength)
 		else if(choice == 2) {
 			searchPhone(phone, phoneLength);
 		}
-		else if(choice == 3) {
+		else if(choice == 3 || choice == -1) {
 			//Do nothing
 		}
 		else {
@@ -67,7 +67,7 @@ void searchPeople(person * people[], int peopleLength) {
 		index++;
 	}
 
-	if(index >= peopleLength || people[index] == NULL) {
+	if(found == 0) {
 		printf("No record found\n");
 	}
 
@@ -100,7 +100,7 @@ void searchPhone(phone * phone[], int phoneLength) {
 		index++;
 	}
 
-	if(index >= phoneLength || phone[index] == NULL) {
+	if(found == 0) {
 		printf("No record found\n");
 	}
 

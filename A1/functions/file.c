@@ -112,6 +112,8 @@ int readFile(FILE * f, person ** peopleL,int * peopleLe, phone ** phoneL, int * 
 		}
 	}
 
+	
+
 	free(buffer);
 	return 0;
 }

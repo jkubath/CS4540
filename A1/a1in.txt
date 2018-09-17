@@ -5,6 +5,7 @@ Last, Middle, First, Nickname
 <person>
 Bell, Gram, Alexander, Alex
 (111) 111-1111 Home, true
+</person>
 <person>
 Person, Addict, Phone, Thumbs
 (111) 123-4567 Cell, true

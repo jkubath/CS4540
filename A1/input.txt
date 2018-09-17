@@ -10,3 +10,14 @@ Last, Middle, First, nickname
 (221) 222-2221 type, true/false
 (221) 222-2223 type, true/false
 </person>
+<person>
+Face, To, Face, Personal
+</person>
+<person>
+Last, Middle, First, Nickname
+(999) 999-9999 Home, true
+</person>
+<person>
+Bell, Gram, Alexander, Alex
+(111) 111-1111 Home, true
+</person>

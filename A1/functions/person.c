@@ -12,6 +12,8 @@ person * copyPersonData(person * old, char ** data) {
 	strncpy(old->first, data[2] + 1, strlen(data[2]) - 1);
 	strncpy(old->nickname, data[3] + 1, strlen(data[3]) - 2);
 
+	old->nextPhone = NULL;
+
 	return old;
 }
 
