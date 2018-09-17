@@ -1,9 +1,9 @@
 
-all: a1.c
-	gcc -Wall -O -pedantic a1.c -o a1
+all: a1.c functions/person.c functions/phone.c functions/initializeList.c functions/file.c functions/printList.c functions/freeThings.c functions/interaction.c
+	gcc -Wall -O -pedantic -o a1 a1.c functions/person.c functions/phone.c functions/initializeList.c functions/file.c functions/printList.c functions/freeThings.c functions/interaction.c
 
 use:
 	./a1 input.txt
 
 val:
-	valgrind --leak-check=full --show-leak-kinds=all ./a1 input.txt
+	valgrind ./a1 input.txt

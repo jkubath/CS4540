@@ -1,0 +1,1 @@
+void freeThings(person ** pe, phone ** ph);

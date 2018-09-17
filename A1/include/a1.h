@@ -7,4 +7,9 @@
 #include "phone.h"
 #include "phoneList.h"
 #include "peopleList.h"
+#include "file.h"
+#include "initializeList.h"
+#include "printList.h"
+#include "freeThings.h"
+#include "interaction.h"
 
