@@ -9,7 +9,7 @@ use1:
 	./a1 input.txt
 
 test:
-	./a1 input.txt < userInput.txt
+	./a1 a1in.txt < userInput.txt
 
 val:
 	valgrind ./a1 a1in.txt
