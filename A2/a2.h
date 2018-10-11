@@ -19,7 +19,9 @@ struct process_struct {
 	ui waitSum; // total time in wait queue
 	ui waitCount; // how many times in wait queue (for average)
 	ui waitMin; // smallest time in wait queue
-	ui waitMax; // longet time in wait queu
+	ui waitMax; // longest time in wait queue
+
+	ui ioToReady; // if the process just moved from io queue to ready = 1, else 0;
 };
 typedef struct process_struct process;
 

@@ -8,6 +8,12 @@
 #include "a2.h"
 #include "functions.h"
 
+#ifndef DEBUG
+#define DEBUG 0
+#define PRINT 0
+#define STATS 1
+#endif
+
 
 int main(int argc, char ** argv) {
 	process p[48]; // process id is array index
@@ -32,9 +38,14 @@ int main(int argc, char ** argv) {
    		/* Adding processes to queue */
     	if(count <= 48) {
     		addProcess(p, queue, count - 1, &queueCount);
+    		if(DEBUG)
+    			printf("Process %d added\n", count-1);
     		totalProcess++;
     	}
     	/* Done adding processes to queue */
+
+    	if(DEBUG)
+    		printf("Time %d------------\n", count);
 
     	//Time quantum reached - swap process
     	if(quantum == os_data->quantum) {
@@ -53,11 +64,18 @@ int main(int argc, char ** argv) {
     		quantum++;
     	}
 
+    	if(PRINT)
+    	{
+    		printQueue(queue, &queueCount, "Process Queue");
+    		printQueue(io, &ioCount, "IO Queue");
+    	}
+
     	count++;
     } while(totalProcess > 0);
 
     //Print wait data
-   	printStats(p, *os_data);
+   	if(STATS)
+   		printStats(p, *os_data);
 	return 0;
 }
 
@@ -83,6 +101,7 @@ void readData(process * processIn) {
 		p[index].waitCount = 0;
 		p[index].waitMin = 0;
 		p[index].waitMax = 0;
+		p[index].ioToReady = 0;
 
 		index++;
 		
@@ -108,21 +127,26 @@ void addProcess(process * p, ui * queue, int index, ui * queueCount) {
 			i--;
 		}
 	}
-
+	if(DEBUG)
+		printf("Process %d position %d\n", index, cur);
 	queue[cur] = index;
 
 	(*queueCount)++;
 }
 
-void printQueue(ui * queue, ui * queueCount) {
+void printQueue(ui * queue, ui * queueCount, char * name) {
 	int index = 0;
 
-	printf("Process Queue %hu\n", *queueCount); 
-	while(index < *queueCount) {
-		printf("%hu ", queue[index]);
-		index++;
+	printf("%s %hu\n", name, *queueCount);
+	if(*queueCount <= 0)
+		printf("Empty\n");
+	else {
+		while(index < *queueCount) {
+			printf("%hu ", queue[index]);
+			index++;
+		}
+		printf("\n");
 	}
-	printf("\n");
 }
 
 int run(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount, int swap, ui * totalProcess) {
@@ -130,6 +154,8 @@ int run(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount, int swa
 
 	//Only increment run time and wait time if processes are in the queues
 	if(*queueCount > 0) {
+		if(DEBUG)
+			printf("CPU %hu\n", index);
 		p[index].curCpu++;
 	}
 	if(*queueCount > 1) {
@@ -145,14 +171,20 @@ int run(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount, int swa
 	if(*queueCount > 0) {
 		//process should move to io
 		if(p[index].curCpu == p[index].cpu) {
+			if(DEBUG)
+				printf("Process %hu finished cpu\n", index);
 			p[index].cpuTotal += p[index].curCpu;
 			p[index].curCpu = 0;
 
 			//Only add to io if the process isn't done running
 			if((p[index].cpuTotal + p[index].ioTotal) != p[index].runTime){
+				if(DEBUG)
+					printf("Process %hu moved to io\n", index);
 				swapToIo(p, queue, queueCount, io, ioCount);
 			}
 			else{
+				if(DEBUG)
+					printf("Process %hu done\n", index);
 				(*totalProcess)--;
 			}
 
@@ -170,6 +202,8 @@ int run(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount, int swa
 			swap = 1;
 		} //End of swapping process to io
 		else if(swap == 1) {
+			if(DEBUG)
+				printf("Process %hu swapped\n", index);
 			//Reset the priority
 			p[index].curPrior = p[index].priority;
 			//Shift everything left one
@@ -211,7 +245,9 @@ void incrementIo(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount
 		
 		//Process is done in running
 		if((p[temp].cpuTotal + p[temp].ioTotal + p[temp].curIo) == p[temp].runTime) {
-			
+			if(DEBUG)
+				printf("Process %d done\n", temp);
+
 			p[temp].ioTotal += p[temp].curIo;
 			p[temp].curIo = 0;
 
@@ -229,13 +265,16 @@ void incrementIo(process * p, ui * queue, ui * queueCount, ui * io, ui * ioCount
 		}
 		//Time to go back to the ready queue
 		else if(p[temp].curIo == p[temp].io) {
+			if(DEBUG)
+				printf("Process %d moved back to ready\n", index);
 
 			p[temp].ioTotal += p[temp].curIo;
 			p[temp].curIo = 0;
+			p[temp].ioToReady = 1; //Set flag for just moved to ready queue
 
 			addProcess(p, queue, temp, queueCount);
 
-			//Shift all processes forward
+			//Shift all io processes forward
 			int cur = index;
 			while(cur < *ioCount - 1) {
 				io[cur] = io[cur + 1];
@@ -260,6 +299,9 @@ void incrementWait(process * p, ui * queue, ui * queueCount){
 			cur = queue[index]; //Get process id
 
 			p[cur].wait++;
+			if(p[cur].ioToReady) {
+				p[cur].ioToReady = 0;
+			}
 
 			//Adjust priority
 			if(p[cur].wait % 50 == 0) {
@@ -281,16 +323,18 @@ void addWaitData(process * p, ui * queue) {
 	//Reset priority of new running process
 	p[index].curPrior = p[index].priority;
 
-	//Set waitMin
-	if(p[index].waitMin <= 0 || p[index].wait < p[index].waitMin)
-		p[index].waitMin = p[index].wait;
-	//Set waitMax
-	if(p[index].waitMax == 0 || p[index].wait > p[index].waitMax)
-		p[index].waitMax = p[index].wait;
-	//Set waitSum
-	p[index].waitSum += p[index].wait;
-	p[index].wait = 0;
+	if(p[index].ioToReady == 0) {
+		//Set waitMin
+		if(p[index].waitMin <= 0 || p[index].wait < p[index].waitMin)
+			p[index].waitMin = p[index].wait;
+		//Set waitMax
+		if(p[index].waitMax == 0 || p[index].wait > p[index].waitMax)
+			p[index].waitMax = p[index].wait;
+		//Set waitSum
+		p[index].waitSum += p[index].wait;
+		p[index].wait = 0;
 
-	//Process is done waiting
-	p[index].waitCount++;
+		//Process is done waiting
+		p[index].waitCount++;
+	}
 }
