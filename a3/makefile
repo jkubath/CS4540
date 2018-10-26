@@ -1,6 +1,6 @@
 
 all: a3.c a3.h
-	gcc -Wall -O -pedantic -o a3 a3.c
+	gcc -Wall -O -pthread -pedantic -o a3 a3.c
 
 use:
 	./a3
