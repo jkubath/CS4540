@@ -8,7 +8,11 @@
 #include <time.h>			/* getcurrenttime */
 #include <errno.h>			/* defines errno */
 #include <sys/wait.h>		/* waitpid */
+#include <sys/mman.h>		/* shared memory for deadlocks count */
 
-
-void Process (sem_t * screen, sem_t * keyboard, int index);
+void init(sem_t ** screen, sem_t ** keyboard);
+int Process (sem_t * screen, sem_t * keyboard, int index);
 int semaphores (sem_t * screen, sem_t * keyboard, int index);
+void setTimedWait(struct timespec * ts, int waitTime);
+void getUserInput(char * buffer, int length, int processIndex);
+void printSummary(int deadlocks[], int count);
