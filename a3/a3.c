@@ -1,7 +1,7 @@
 #include "a3.h"
 
 #define DEBUG 0
-#define PRINT_INLINE 0
+#define PRINT_INLINE 1
 #define PRINT_SUMMARY 1
 
 static int * deadlocks;
@@ -132,7 +132,7 @@ int semaphores(sem_t * screen, sem_t * keyboard, int index) {
   int count = 0;
   int l = -1;
   int r = -1;
-  int sleepTime = 1; // Time to sleep after a failed lock of right resource
+  int sleepTime = 5; // Random sleepTime from 0 - (sleepTime - 1)
   struct timespec ts;
   int waitTime = 1; // Time to wait for right resource to become availabe before failing
   sem_t * left;
@@ -152,7 +152,6 @@ int semaphores(sem_t * screen, sem_t * keyboard, int index) {
       lName = "screen";
       right = keyboard;
       rName = "keyboard";
-      sleepTime += 1;
   }
     
   // Loop until both semaphores are locked
@@ -176,7 +175,7 @@ int semaphores(sem_t * screen, sem_t * keyboard, int index) {
         // Release Resources
         sem_post(left);
         // Wait for sleepTime seconds
-        sleep(sleepTime);
+        sleep(rand() % sleepTime);
         // Increment deadlock counter
         count++;
       }
