@@ -1,64 +1,61 @@
-#include "a3.h"
+#include "a3_thread.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #define PRINT_INLINE 1
 #define PRINT_SUMMARY 1
 
-static int * deadlocks;
-
 int main(int argc, char ** argv) {
-  sem_t * sems = NULL;
-	sem_t * semk = NULL;
+  printf("Threads with Deadlock resolution\n");
 
-  int procNumber = 9;
-	int pids[procNumber]; 
-	int pid; // Holds the PID of the forked process
+  semStruct sem_s;
+  int threadNumber = 9;
+	pthread_t pids[threadNumber]; 
 	int i = 0; // Index value
 
-  // Shared memory to hold deadlock count data
-  deadlocks = mmap(NULL, sizeof(int) * procNumber, PROT_READ | PROT_WRITE, 
-                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-
   // Open the semaphores
-  init(&sems, &semk);
+  init(&sem_s);
+  sem_s.id = 0;
+
+  printf("sem\n");
+  sem_s.deadlocks = calloc(sizeof(int) * threadNumber, 1);
+
+  /* Open 9 threads
+   * -------------------------------
+   */
+  do {
+    // Run the thread
+    if(DEBUG) {
+      printf("Creating thread %d\n", i);
+    }
+
+		if(pthread_create(&(pids[i]), NULL, Thread, (void *) &sem_s) != 0) {
+      printf("Error creating thread %d\n", i);
+    }
+
+    sem_s.id++;
+		i++;
+	} while( i < threadNumber);
+	
+  /* Wait for all threads to finish
+   * -------------------------------
+  */ 
+  i = 0;
+  while(i < threadNumber) {
+    if(pthread_join(pids[i], NULL)) {
+      printf("Error joining thread %d\n", i);
+    }
+    i++;
+  }
   
 
-  /* Open 9 processes
-   * -------------------------------
-   */
-	do {
-    // Run the child process
-		if( (pid = fork()) == 0) {
-      sleep(1); // Wait for all processes to be made
-      deadlocks[i] = Process(sems, semk, i);
-    }
-    // Add it to the parent's array
-		else {
-      pids[i] = pid;
-    }
+  /* Close Resources */
+  sem_close(&(sem_s.sems));
+  sem_close(&(sem_s.semk));
+  printf("Parent finished\n");
 
-		i++;
-	} while( i < procNumber && pid > 0);
-	
-  /* Wait for all children to finish
-   * -------------------------------
-   */
-	if(i >= procNumber && pid != 0) {
-    i = 0;
-    while(i < procNumber) {
-      waitpid(pids[i], NULL, 0);
-      i++;
-    }
-
-    /* Close Resources */
-    sem_close(sems);
-    sem_close(semk);
-    printf("Parent finished\n");
-
-    if(PRINT_SUMMARY) {
-      printSummary(deadlocks, procNumber);
-    }
-	}
+  if(PRINT_SUMMARY) {
+    printSummary(sem_s.deadlocks, threadNumber);
+  }
 
   
 	return 0;
@@ -67,21 +64,17 @@ int main(int argc, char ** argv) {
 /*
  * Open the semaphores
  */
-void init(sem_t ** screen, sem_t ** keyboard) {
-  *screen = sem_open("/screen", O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO, 1);
-  sem_unlink("/screen"); // Prevent locked resources
-
+void init(semStruct * sem) {
+  int returnVal = 0;
+  returnVal = sem_init(&(sem->sems), 0, 1);
   /* Error Check */
-  if(*screen == SEM_FAILED) {
+  if(returnVal != 0) {
     printf("Screen semaphore failed to open\n");
     exit(0);
   }
-
-  *keyboard = sem_open("/keyboard", O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO, 1);
-  sem_unlink("/keyboard"); // Prevent locked resources
-
+  returnVal = sem_init(&(sem->semk), 0, 1);
   /* Error Check */
-  if(*keyboard == SEM_FAILED) {
+  if(returnVal != 0) {
     printf("Keyboard semaphore failed to open\n");
     exit(0);
   }
@@ -94,30 +87,40 @@ void init(sem_t ** screen, sem_t ** keyboard) {
 /*
  * Run the process until the user quits
  */
-int Process(sem_t * screen, sem_t * keyboard, int index) {
-  int count = 0; // Count of deadlocks for this process
+void * Thread (void * sem_s) {
+  semStruct * semaphores = (semStruct *) sem_s;
+  int id = semaphores->id;
+  int count = 0; // Count of deadlocks for this thread
   int bufferLength = 80;
   char * input = calloc(bufferLength, 1); // User input buffer
 
-  /* Loop the process until user quits */
-  while(strnlen(input, bufferLength) > 1 || input[0] != 'q') {
-    count += semaphores(screen, keyboard, index);
+  //Allow all threads to be made
+  sleep(1);
 
-    getUserInput(input, bufferLength, index);
-    printf("%d Input: %s\n", index, input);
+  if(DEBUG) {
+    printf("Thread %d\n", id);
+  }
+
+  /* Loop the thread until user quits */
+  while(strnlen(input, bufferLength) > 1 || input[0] != 'q') {
+    count += semaphore(semaphores, id);
+
+    getUserInput(input, bufferLength, id);
+    printf("%d Input: %s\n", id, input);
 
     /* Release resources */
-    sem_post(screen);
-    sem_post(keyboard);
+    sem_post(&(semaphores->sems));
+    sem_post(&(semaphores->semk));
 
   }
 
   if(PRINT_INLINE) {
-	 printf("Process %d finished with %d deadlock(s)\n", index, count);
+	 printf("Thread %d finished with %d deadlock(s)\n", id, count);
   }
   free(input);
 
-  return count;
+  semaphores->deadlocks[id] = count;
+  return (void *) NULL;
 }
 
 /*
@@ -125,7 +128,7 @@ int Process(sem_t * screen, sem_t * keyboard, int index) {
  * continue to use sem_timedwait to attempt
  * to lock the right semaphore
  */
-int semaphores(sem_t * screen, sem_t * keyboard, int index) {
+int semaphore(semStruct * sem_s, int index) {
   //returns count of how many times recovered from deadlock
   //odd index gets screen first
   //even index gets keyboard first
@@ -141,16 +144,16 @@ int semaphores(sem_t * screen, sem_t * keyboard, int index) {
 
   //Even proccess ID
   if((index % 2) == 0) {
-      left = keyboard;
+      left = &(sem_s->semk);
       lName = "keyboard";
-      right = screen;
+      right = &(sem_s->sems);
       rName = "screen";
   }
   // Odd process ID
   else {
-      left = screen;
+      left = &(sem_s->sems);
       lName = "screen";
-      right = keyboard;
+      right = &(sem_s->semk);
       rName = "keyboard";
   }
     
