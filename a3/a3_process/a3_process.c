@@ -1,61 +1,65 @@
-#include "a3_thread.h"
+#include "a3_process.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #define PRINT_INLINE 1
-#define PRINT_SUMMARY 1
+#define PRINT_SUMMARY 0
+
+static int * deadlocks;
 
 int main(int argc, char ** argv) {
-  printf("Threads with Deadlock resolution\n");
+  printf("Processes with Deadlock resolution\n");
+  sem_t * sems = NULL;
+	sem_t * semk = NULL;
 
-  semStruct sem_s;
-  int threadNumber = 9;
-	pthread_t pids[threadNumber]; 
+  int procNumber = 9;
+	int pids[procNumber]; 
+	int pid; // Holds the PID of the forked process
 	int i = 0; // Index value
 
+  // Shared memory to hold deadlock count data
+  deadlocks = mmap(NULL, sizeof(int) * procNumber, PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
   // Open the semaphores
-  init(&sem_s);
-  sem_s.id = 0;
-
-  printf("sem\n");
-  sem_s.deadlocks = calloc(sizeof(int) * threadNumber, 1);
-
-  /* Open 9 threads
-   * -------------------------------
-   */
-  do {
-    // Run the thread
-    if(DEBUG) {
-      printf("Creating thread %d\n", i);
-    }
-
-		if(pthread_create(&(pids[i]), NULL, Thread, (void *) &sem_s) != 0) {
-      printf("Error creating thread %d\n", i);
-    }
-
-    sem_s.id++;
-		i++;
-	} while( i < threadNumber);
-	
-  /* Wait for all threads to finish
-   * -------------------------------
-  */ 
-  i = 0;
-  while(i < threadNumber) {
-    if(pthread_join(pids[i], NULL)) {
-      printf("Error joining thread %d\n", i);
-    }
-    i++;
-  }
+  init(&sems, &semk);
   
 
-  /* Close Resources */
-  sem_close(&(sem_s.sems));
-  sem_close(&(sem_s.semk));
-  printf("Parent finished\n");
+  /* Open 9 processes
+   * -------------------------------
+   */
+	do {
+    // Run the child process
+		if( (pid = fork()) == 0) {
+      sleep(1); // Wait for all processes to be made
+      deadlocks[i] = Process(sems, semk, i);
+    }
+    // Add it to the parent's array
+		else {
+      pids[i] = pid;
+    }
 
-  if(PRINT_SUMMARY) {
-    printSummary(sem_s.deadlocks, threadNumber);
-  }
+		i++;
+	} while( i < procNumber && pid > 0);
+	
+  /* Wait for all children to finish
+   * -------------------------------
+   */
+	if(i >= procNumber && pid != 0) {
+    i = 0;
+    while(i < procNumber) {
+      waitpid(pids[i], NULL, 0);
+      i++;
+    }
+
+    /* Close Resources */
+    sem_close(sems);
+    sem_close(semk);
+    printf("Parent finished\n");
+
+    if(PRINT_SUMMARY) {
+      printSummary(deadlocks, procNumber);
+    }
+	}
 
   
 	return 0;
@@ -64,17 +68,21 @@ int main(int argc, char ** argv) {
 /*
  * Open the semaphores
  */
-void init(semStruct * sem) {
-  int returnVal = 0;
-  returnVal = sem_init(&(sem->sems), 0, 1);
+void init(sem_t ** screen, sem_t ** keyboard) {
+  *screen = sem_open("/screen", O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO, 1);
+  sem_unlink("/screen"); // Prevent locked resources
+
   /* Error Check */
-  if(returnVal != 0) {
+  if(*screen == SEM_FAILED) {
     printf("Screen semaphore failed to open\n");
     exit(0);
   }
-  returnVal = sem_init(&(sem->semk), 0, 1);
+
+  *keyboard = sem_open("/keyboard", O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO, 1);
+  sem_unlink("/keyboard"); // Prevent locked resources
+
   /* Error Check */
-  if(returnVal != 0) {
+  if(*keyboard == SEM_FAILED) {
     printf("Keyboard semaphore failed to open\n");
     exit(0);
   }
@@ -87,40 +95,30 @@ void init(semStruct * sem) {
 /*
  * Run the process until the user quits
  */
-void * Thread (void * sem_s) {
-  semStruct * semaphores = (semStruct *) sem_s;
-  int id = semaphores->id;
-  int count = 0; // Count of deadlocks for this thread
+int Process(sem_t * screen, sem_t * keyboard, int index) {
+  int count = 0; // Count of deadlocks for this process
   int bufferLength = 80;
   char * input = calloc(bufferLength, 1); // User input buffer
 
-  //Allow all threads to be made
-  sleep(1);
-
-  if(DEBUG) {
-    printf("Thread %d\n", id);
-  }
-
-  /* Loop the thread until user quits */
+  /* Loop the process until user quits */
   while(strnlen(input, bufferLength) > 1 || input[0] != 'q') {
-    count += semaphore(semaphores, id);
+    count += semaphores(screen, keyboard, index);
 
-    getUserInput(input, bufferLength, id);
-    printf("%d Input: %s\n", id, input);
+    getUserInput(input, bufferLength, index);
+    printf("%d Input: %s\n", index, input);
 
     /* Release resources */
-    sem_post(&(semaphores->sems));
-    sem_post(&(semaphores->semk));
+    sem_post(screen);
+    sem_post(keyboard);
 
   }
 
   if(PRINT_INLINE) {
-	 printf("Thread %d finished with %d deadlock(s)\n", id, count);
+	 printf("Process %d finished with %d deadlock(s)\n", index, count);
   }
   free(input);
 
-  semaphores->deadlocks[id] = count;
-  return (void *) NULL;
+  return count;
 }
 
 /*
@@ -128,14 +126,14 @@ void * Thread (void * sem_s) {
  * continue to use sem_timedwait to attempt
  * to lock the right semaphore
  */
-int semaphore(semStruct * sem_s, int index) {
+int semaphores(sem_t * screen, sem_t * keyboard, int index) {
   //returns count of how many times recovered from deadlock
   //odd index gets screen first
   //even index gets keyboard first
   int count = 0;
   int l = -1;
   int r = -1;
-  int sleepTime = 5; // Random sleepTime from 0 - (sleepTime - 1)
+  int sleepTime = 10; // Random sleepTime from 0 - (sleepTime - 1)
   struct timespec ts;
   int waitTime = 1; // Time to wait for right resource to become availabe before failing
   sem_t * left;
@@ -144,16 +142,16 @@ int semaphore(semStruct * sem_s, int index) {
 
   //Even proccess ID
   if((index % 2) == 0) {
-      left = &(sem_s->semk);
+      left = keyboard;
       lName = "keyboard";
-      right = &(sem_s->sems);
+      right = screen;
       rName = "screen";
   }
   // Odd process ID
   else {
-      left = &(sem_s->sems);
+      left = screen;
       lName = "screen";
-      right = &(sem_s->semk);
+      right = keyboard;
       rName = "keyboard";
   }
     
@@ -161,6 +159,7 @@ int semaphore(semStruct * sem_s, int index) {
   while(l != 0 || r != 0) {
       // Always grab the left resource first
       l = sem_wait(left);
+      sleep(1);
       if(DEBUG) {
         printf("%d locked %s\n", index, lName);
       }
