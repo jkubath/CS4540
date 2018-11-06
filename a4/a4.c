@@ -8,31 +8,35 @@ int main() {
 	signal(SIGINT, handleSignal);
 	signal(SIGALRM, handleAlarm);
 
+	int sleepTime = 20;
+	int sleepRet = 0;
+
 	printf("Signal Handling\n");
+
 	alarm(3);
-	sleep(20);
 
-	printf("Sleep Interrupted\n");
-
-	alarm(2);
-	sleep(20);
-	printf("Sleep Interrupted");
-
-	pause();
-	printf("Pause Interrupted");
-
-	printf("Use kill -9 $(pgrep terminal) to end the process\n");
-	
-	while(1) {
-
+	sleepRet = sleep(sleepTime);
+	if(sleepRet != sleepTime) {
+		printf("Sleep interrupted with %ds left\n", sleepRet);
 	}
 
 
+	alarm(2);
 
+	sleepRet = sleep(20);
+	if(sleepRet != sleepTime) {
+		printf("Sleep interrupted with %ds left\n", sleepRet);
+	}
+
+	pause();
+
+	printf("Signal Handling finished\n");
+	
+	return 0;
 }
 
 void handleSignal() {
-	printf("CTRL-C caught\n");
+	printf("\nCTRL-C caught\n");
 }
 
 void handleAlarm() {
