@@ -4,6 +4,8 @@
 #define PRINT_INLINE 1
 #define PRINT_SUMMARY 0
 
+static int * deadlocks;
+
 int main(int argc, char ** argv) {
   printf("Processes with Deadlock resolution\n");
   sem_t * sems = NULL;
@@ -13,6 +15,10 @@ int main(int argc, char ** argv) {
 	int pids[procNumber]; 
 	int pid; // Holds the PID of the forked process
 	int i = 0; // Index value
+
+  // Shared memory to hold deadlock count data
+  deadlocks = mmap(NULL, sizeof(int) * procNumber, PROT_READ | PROT_WRITE, 
+                    MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
   // Open the semaphores
   init(&sems, &semk);
@@ -25,7 +31,7 @@ int main(int argc, char ** argv) {
     // Run the child process
 		if( (pid = fork()) == 0) {
       sleep(1); // Wait for all processes to be made
-      Process(sems, semk, i);
+      deadlocks[i] = Process(sems, semk, i);
     }
     // Add it to the parent's array
 		else {
@@ -50,6 +56,9 @@ int main(int argc, char ** argv) {
     sem_close(semk);
     printf("Parent finished\n");
 
+    if(PRINT_SUMMARY) {
+      printSummary(deadlocks, procNumber);
+    }
 	}
 
   
@@ -205,6 +214,17 @@ void getUserInput(char * buffer, int length, int processIndex) {
   }
 }
 
+/*
+ * Iterate and print all the deadlock counts
+ */
+void printSummary(int deadlocks[], int count) {
+  int i = 0;
+
+  while(i < count) {
+    printf("%d had %d deadlocks\n", i, deadlocks[i]);
+    i++;
+  }
+}
 
 
 
