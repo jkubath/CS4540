@@ -1,0 +1,233 @@
+Author: Jonah Kubath
+Date:	12/06/2018
+Class:	CS4540
+	
+
+
+https://www.youtube.com/watch?v=Wm3-lBW8o4s
+--------------------------------------------
+Compile Kernel
+
+wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.18.9.tar.gz
+tar -xzf linux-4.18.9.tar.gz
+cd linux-4.18.9
+sudo apt-get install ncurses-dev pkg-config bison flex libelf-dev libssl-dev vim
+
+## Save as .config
+make menuconfig
+make -j4
+sudo make modules_install
+sudo make install
+
+
+https://www.youtube.com/watch?v=67cxIXLCfUk
+--------------------------------------------
+Debug Kernel
+
+## vim .config in the new kernel directory
+## make sure CONFIG_HAVE_ARCH_KGDB=y, CONFIG_KGDB=y, CONFIG_KGDB_SERIAL_CONSOLE=y
+## Undefine CONFIG_RANDOMIZED_BASE
+## Example: # CONFIG_RANDOMIZED_BASE is not set
+
+## type: / to search in vim
+
+##Copy the vmlinux executable from target to host
+## I used a USB drive
+## make sure that when copied, it is executable - sudo chmod 777 works
+
+##Back to target machine
+##Open grub.cfg
+cd /boot
+sudo vim /boot/grub/grub.cfg
+
+##Search for the first "Ubuntu"
+/Ubuntu
+
+## On the linux /boot/vmlinuz-XXXXXXXXX add "kgdbwait kgdboc=ttyS0,115200 nokaslr"
+save with esc
+:wq!
+
+##Force grub to show linux versions
+sudo vim /etc/default/grub
+
+##Configure serial port on Virtual Box Target
+virtual box > settings > serial ports
+1. enable serial port
+	port number = COM1
+	port mode: host pipe
+	## uncheck connect to existing pipe/socket
+	Path/Address: 	\\.\pipe\serial # When on windows
+					/tmp/serial # When on Linux
+
+##Configure serial port on Virtual Box Host
+virtual box > settings > serial ports
+1. enable serial port
+	port number = COM1
+	port mode: host pipe
+	## check connect to existing pipe/socket
+	Path/Address: 	\\.\pipe\serial ## When on Windows
+					/tmp/serial ## When on Linux
+
+
+##Restart the target computer
+##Run GDB on host computer
+## On Windows, it seemed like the user had to wait for the target to
+## completely boot and get to the black waiting screen before starting
+## the host.  On Mac, I had to boot the host before the target finished
+## booting.  Doing it out of sync on either OS, caused the virtual box
+## pipe to not connect.
+
+sudo gdb /boot/kgdb-images/vmlinux
+
+target remote /dev/ttyS0
+
+
+https://www.youtube.com/watch?v=Zn8mEZXr6nE
+--------------------------------------------
+Create loadable_module
+
+cd ~/Desktop
+mkdir module
+
+gedit jonah_module.c
+
+## Code
+
+#include <linux/init.h>
+#include <linux/module.h>
+
+int jonah_module_init(void) {
+	printk(KERN_ALERT "Inside the %s function\n", __FUNCTION__);
+	return 0;
+}
+
+int jonah_module_exit(void) {
+	printk(KERN_ALERT "Leaving the %s function\n", __FUNCTION__);
+}
+
+module_init(jonah_module_init);
+module_exit(jonah_module_exit);
+
+## Done
+
+gedit makefile
+
+## Code
+
+obj-m := jonah_module.o
+
+## Done
+
+## Get Processor information and compilation information
+make -C /lib/modules/$(uname -r)/build M=$PWD modules EXTRA_CFLAGS="-g"
+
+## Insert the module into kernel space
+
+sudo insmod ./jonah_module.ko
+
+## See currently loaded modules
+lsmod
+
+## If you would want to removesud the module
+## sudo rmmod jonah_module
+
+
+
+https://www.youtube.com/watch?v=AP-tBd84vbM
+--------------------------------------------
+Add linux system call
+
+sudo apt-get install gcc
+sudo apt-get install python-pip python-dev libffi-dev libssl-dev libxml2-dev libxslt1-dev libjpeg8-dev zlib1g-dev
+sudo apt-get install libncursesw5-dev
+
+##Download the kernel sources
+cd ~/Desktop
+mkdir kernel
+cd kernel
+wget https://www.kernel.org/pub/linux/kernel/v4.x/linux-4.18.9.tar.gz
+tar -xzf linux-4.18.9.tar.gz
+cd linux-4.18.9
+
+mkdir jonahcall
+cd jonahcall
+
+gedit jonahcall.c
+
+##CODE
+
+#include <linux/kernel.h>
+
+asmlinkage long sys_jonahcall(void) {
+	
+	printk("Jonah System call\n");
+	return 0;
+}
+
+##DONE CODE
+
+gedit Makefile
+
+## Makefile
+obj-y := jonahcall.o
+
+## DONE Makefile
+
+cd ..
+##Another Makefile
+gedit Makefile
+
+## Search for "core-y	+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto /block"
+add " jonahcall/" at the end of the line
+
+##Done Makefile
+
+cd include/linux
+gedit syscalls.h
+
+##Go to the bottom of the file, right before the #endif
+add "asmlinkage long sys_jonahcall(void);"
+
+cd ../..
+cd arch/x86/entry/syscalls
+
+gedit syscall_64.tbl
+##Scroll to the end of the x64 system calls (around line 335)
+add "<next number (335 for me)>	jonahcall  	sys_jonahcall"
+
+cd ../../../../
+
+#Save and exit
+make menuconfig
+
+make oldconfig
+
+#compile the kernel
+make
+
+make modules_install install
+
+##reboot the system
+##make a test program
+
+##CODE 
+
+#include <stdio.h>
+#include <linux/kernel.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+int main() {
+	long int s = syscall(335); //335 is my jonahcall();
+	printf("System call .: jonahcall :. returned %ld\n", s);
+	return 0;
+}
+
+
+##return value of 0 = success
+##Open kernel messages
+dmesg
+
+
+
+
